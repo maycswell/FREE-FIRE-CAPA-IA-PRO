@@ -202,8 +202,12 @@ fun FeatureCard(
     }
 }
 
+
 @Composable
-fun SensitivityScreen() {
+fun SystemScreen() {
+    MotionMonitorScreen()
+}
+
     var value by remember { mutableFloatStateOf(100f) }
 
     Text("SENSIBILIDADE IA", color = Red, fontSize = 21.sp,
