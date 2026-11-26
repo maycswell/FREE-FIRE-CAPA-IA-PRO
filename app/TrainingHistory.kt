@@ -25,6 +25,8 @@ private class TrainingRepository(context: Context) {
     private val prefs = context.getSharedPreferences(
     "capa_ia_training",
     Context.MODE_PRIVATE
+        private val progressRepository =
+    ProgressRepository(context.applicationContext)
 )
 
     fun attempts() = prefs.getInt("attempts", 0)
