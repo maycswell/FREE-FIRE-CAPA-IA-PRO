@@ -203,36 +203,16 @@ fun FeatureCard(
 }
 
 
+
 @Composable
 fun SystemScreen() {
-    MotionMonitorScreen()
-}
+    Column {
+        DeviceDiagnosticsScreen()
 
-    var value by remember { mutableFloatStateOf(100f) }
+        Spacer(Modifier.height(20.dp))
 
-    Text("SENSIBILIDADE IA", color = Red, fontSize = 21.sp,
-        fontWeight = FontWeight.Bold)
-
-    Spacer(Modifier.height(15.dp))
-
-    Text("Configuração de teste: ${value.toInt()}",
-        color = White, fontSize = 18.sp)
-
-    Slider(
-        value = value,
-        onValueChange = { value = it },
-        valueRange = 0f..200f,
-        colors = SliderDefaults.colors(
-            thumbColor = Red,
-            activeTrackColor = Red
-        )
-    )
-
-    Text(
-        "Este controle é apenas um registro de teste. " +
-        "Ele não altera a sensibilidade dentro do jogo.",
-        color = Gray
-    )
+        MotionMonitorScreen()
+    }
 }
 
 @Composable
