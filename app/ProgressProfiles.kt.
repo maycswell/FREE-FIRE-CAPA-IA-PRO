@@ -1,0 +1,451 @@
+
+package br.com.freefirecapaia.pro
+
+import android.content.Context
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+
+private val ProgressRed = Color(0xFFE53935)
+private val ProgressPanel = Color(0xFF191919)
+private val ProgressWhite = Color.White
+private val ProgressGray = Color.LightGray
+
+data class DailyResult(
+    val date: String,
+    val attempts: Int,
+    val hits: Int
+)
+
+data class SensitivityProfile(
+    val name: String,
+    val value: Int
+)
+
+class ProgressRepository(context: Context) {
+
+    private val prefs = context.getSharedPreferences(
+        "capa_ia_training",
+        Context.MODE_PRIVATE
+    )
+
+    private fun today(): String {
+        return SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.US
+        ).format(Date())
+    }
+
+    fun recordAttempt() {
+        val key = "daily_${today()}_attempts"
+        prefs.edit()
+            .putInt(key, prefs.getInt(key, 0) + 1)
+            .apply()
+    }
+
+    fun recordHit() {
+        val key = "daily_${today()}_hits"
+        prefs.edit()
+            .putInt(key, prefs.getInt(key, 0) + 1)
+            .apply()
+    }
+
+    fun getLastSevenDays(): List<DailyResult> {
+        val formatter = SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.US
+        )
+
+        val displayFormatter = SimpleDateFormat(
+            "dd/MM",
+            Locale.getDefault()
+        )
+
+        return (6 downTo 0).map { offset ->
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_YEAR, -offset)
+
+            val keyDate = formatter.format(calendar.time)
+            val displayDate = displayFormatter.format(calendar.time)
+
+            DailyResult(
+                date = displayDate,
+                attempts = prefs.getInt(
+                    "daily_${keyDate}_attempts", 0
+                ),
+                hits = prefs.getInt(
+                    "daily_${keyDate}_hits", 0
+                )
+            )
+        }
+    }
+
+    fun saveProfile(name: String, value: Int) {
+        val cleanName = name.trim()
+        if (cleanName.isBlank() || cleanName.contains("|")) return
+
+        val profiles = prefs.getStringSet(
+            "sensitivity_profiles",
+            emptySet()
+        )?.toMutableSet() ?: mutableSetOf()
+
+        profiles.removeAll {
+            it.substringBefore("|") == cleanName
+        }
+
+        profiles.add("$cleanName|${value.coerceIn(0, 200)}")
+
+        prefs.edit()
+            .putStringSet("sensitivity_profiles", profiles)
+            .apply()
+    }
+
+    fun getProfiles(): List<SensitivityProfile> {
+        return prefs.getStringSet(
+            "sensitivity_profiles",
+            emptySet()
+        )?.mapNotNull { entry ->
+            val parts = entry.split("|")
+            if (parts.size != 2) {
+                null
+            } else {
+                val value = parts[1].toIntOrNull()
+                if (value == null) null
+                else SensitivityProfile(parts[0], value)
+            }
+        }?.sortedBy { it.name } ?: emptyList()
+    }
+
+    fun deleteProfile(name: String) {
+        val profiles = prefs.getStringSet(
+            "sensitivity_profiles",
+            emptySet()
+        )?.toMutableSet() ?: mutableSetOf()
+
+        profiles.removeAll {
+            it.substringBefore("|") == name
+        }
+
+        prefs.edit()
+            .putStringSet("sensitivity_profiles", profiles)
+            .apply()
+    }
+}
+
+@Composable
+fun ProgressScreen() {
+    val context = LocalContext.current
+
+    val repository = remember {
+        ProgressRepository(context.applicationContext)
+    }
+
+    var history by remember {
+        mutableStateOf(repository.getLastSevenDays())
+    }
+
+    var profiles by remember {
+        mutableStateOf(repository.getProfiles())
+    }
+
+    var profileName by remember {
+        mutableStateOf("")
+    }
+
+    var profileValue by remember {
+        mutableIntStateOf(100)
+    }
+
+    val totalAttempts = history.sumOf { it.attempts }
+    val totalHits = history.sumOf { it.hits }
+
+    val percentage = if (totalAttempts > 0) {
+        totalHits * 100 / totalAttempts
+    } else {
+        0
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            "EVOLUÇÃO DO JOGADOR",
+            color = ProgressRed,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(15.dp))
+
+        ProgressInfoCard(
+            "TENTATIVAS NOS ÚLTIMOS 7 DIAS",
+            totalAttempts.toString()
+        )
+
+        ProgressInfoCard(
+            "ACERTOS NOS ÚLTIMOS 7 DIAS",
+            totalHits.toString()
+        )
+
+        ProgressInfoCard(
+            "TAXA DE ACERTOS",
+            "$percentage%"
+        )
+
+        Spacer(Modifier.height(20.dp))
+
+        Text(
+            "GRÁFICO DE EVOLUÇÃO",
+            color = ProgressRed,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = ProgressPanel
+            ),
+            shape = RoundedCornerShape(15.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(15.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(135.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    val maxAttempts = (history.maxOfOrNull {
+                        it.attempts
+                    } ?: 0).coerceAtLeast(1)
+
+                    history.forEach { day ->
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom
+                        ) {
+                            Text(
+                                day.attempts.toString(),
+                                color = ProgressGray,
+                                fontSize = 9.sp
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(
+                                        (100f * day.attempts /
+                                            maxAttempts).coerceAtLeast(
+                                            if (day.attempts > 0) 4f else 2f
+                                        ).dp
+                                    )
+                                    .background(
+                                        ProgressRed,
+                                        RoundedCornerShape(
+                                            topStart = 5.dp,
+                                            topEnd = 5.dp
+                                        )
+                                    )
+                            )
+
+                            Spacer(Modifier.height(5.dp))
+
+                            Text(
+                                day.date,
+                                color = ProgressGray,
+                                fontSize = 9.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    "Barras representam tentativas registradas por dia.",
+                    color = ProgressGray,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(22.dp))
+
+        Text(
+            "PERFIS DE SENSIBILIDADE",
+            color = ProgressRed,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = profileName,
+            onValueChange = { profileName = it },
+            label = { Text("Nome do perfil") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = ProgressRed,
+                focusedLabelColor = ProgressRed,
+                cursorColor = ProgressRed
+            )
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        Text(
+            "Valor da sensibilidade: $profileValue",
+            color = ProgressWhite
+        )
+
+        Slider(
+            value = profileValue.toFloat(),
+            onValueChange = {
+                profileValue = it.toInt()
+            },
+            valueRange = 0f..200f,
+            colors = SliderDefaults.colors(
+                thumbColor = ProgressRed,
+                activeTrackColor = ProgressRed
+            )
+        )
+
+        Button(
+            onClick = {
+                repository.saveProfile(profileName, profileValue)
+                profiles = repository.getProfiles()
+                profileName = ""
+            },
+            enabled = profileName.trim().isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ProgressRed
+            )
+        ) {
+            Text("SALVAR PERFIL")
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (profiles.isEmpty()) {
+            Text(
+                "Nenhum perfil salvo ainda.",
+                color = ProgressGray
+            )
+        } else {
+            profiles.forEach { profile ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ProgressPanel
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                profile.name,
+                                color = ProgressWhite,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                "Sensibilidade: ${profile.value}",
+                                color = ProgressGray
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                repository.deleteProfile(profile.name)
+                                profiles = repository.getProfiles()
+                            }
+                        ) {
+                            Text(
+                                "EXCLUIR",
+                                color = ProgressRed
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(15.dp))
+
+        OutlinedButton(
+            onClick = {
+                history = repository.getLastSevenDays()
+                profiles = repository.getProfiles()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("ATUALIZAR HISTÓRICO")
+        }
+
+        Text(
+            "Os dados são armazenados localmente. O gráfico " +
+            "mostra apenas os registros feitos depois da instalação " +
+            "desta versão.",
+            color = ProgressGray,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+private fun ProgressInfoCard(
+    title: String,
+    value: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = ProgressPanel
+        ),
+        shape = RoundedCornerShape(13.dp)
+    ) {
+        Column(Modifier.padding(15.dp)) {
+            Text(
+                title,
+                color = ProgressRed,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
+
+            Text(
+                value,
+                color = ProgressWhite,
+                fontSize = 22.sp
+            )
+        }
+    }
+}
