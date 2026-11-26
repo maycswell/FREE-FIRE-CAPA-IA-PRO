@@ -110,11 +110,12 @@ fun CapaIAApp() {
             Spacer(Modifier.height(22.dp))
 
             when (page) {
-                "Início" -> HomeScreen { page = it }
-                "Sensibilidade" -> SensitivityScreen()
-                "Treino" -> TrainingScreen()
-                "Sistema" -> SystemScreen()
-            }
+    "Início" -> HomeScreen { page = it }
+    "Sensibilidade" -> SensitivityScreen()
+    "Treino" -> TrainingScreen()
+    "Sistema" -> SystemScreen()
+    "Evolução" -> ProgressScreen()
+}
         }
     }
 }
@@ -162,6 +163,13 @@ fun HomeScreen(openPage: (String) -> Unit) {
         "Consulte informações e faça diagnósticos") {
         openPage("Sistema")
     }
+FeatureCard(
+    "📊",
+    "MINHA EVOLUÇÃO",
+    "Gráficos, histórico e perfis de sensibilidade"
+) {
+    openPage("Evolução")
+}
 
     Spacer(Modifier.height(18.dp))
 
