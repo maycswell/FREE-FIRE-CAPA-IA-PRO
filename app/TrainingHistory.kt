@@ -40,19 +40,23 @@ private class TrainingRepository(context: Context) {
     fun lastDate() = prefs.getString("last_date", "Nenhum teste")!!
 
     fun addAttempt() {
-        prefs.edit()
-            .putInt("attempts", attempts() + 1)
-            .putString("last_date", currentDate())
-            .apply()
+    prefs.edit()
+        .putInt("attempts", attempts() + 1)
+        .putString("last_date", currentDate())
+        .apply()
+
+    progressRepository.recordAttempt()
     }
 
     fun addHit() {
-        if (hits() < attempts()) {
-            prefs.edit()
-                .putInt("hits", hits() + 1)
-                .putString("last_date", currentDate())
-                .apply()
-        }
+    if (hits() < attempts()) {
+        prefs.edit()
+            .putInt("hits", hits() + 1)
+            .putString("last_date", currentDate())
+            .apply()
+
+        progressRepository.recordHit()
+    }
     }
 
     fun saveSensitivity(value: Int) {
