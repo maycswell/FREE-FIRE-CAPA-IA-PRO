@@ -12,27 +12,35 @@ jobs:
     name: Compilar aplicativo Android
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
-      - name: Baixar código
-        uses: actions/checkout@v4
+      - name: Baixar projeto
+        uses: actions/checkout@v5
 
       - name: Configurar Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Configurar Gradle
+      - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verificar Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          which sdkmanager
+          sdkmanager --version
 
       - name: Aceitar licenças Android
+        shell: bash
         run: |
-          yes | sdkmanager --licenses || true
+          yes | sdkmanager --licenses
 
       - name: Instalar componentes Android
         run: |
@@ -41,22 +49,23 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      - name: Verificar Android SDK
+      - name: Verificar componentes
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           sdkmanager --list_installed
 
-      - name: Compilar APK
+      - name: Compilar aplicativo
         run: |
           gradle --no-daemon :app:assembleDebug
 
-      - name: Verificar arquivo APK
+      - name: Verificar APK
         run: |
           test -f app/build/outputs/apk/debug/app-debug.apk
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publicar APK
+      - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
           name: FREE-FIRE-CAPA-IA-PRO-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+concurrency: 
