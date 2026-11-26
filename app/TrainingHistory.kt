@@ -23,9 +23,9 @@ private val HistoryGray = Color.LightGray
 private class TrainingRepository(context: Context) {
 
     private val prefs = context.getSharedPreferences(
-        "capa_ia_training",
-        Context.MODE_PRIVATE
-    )
+    "capa_ia_training",
+    Context.MODE_PRIVATE
+)
 
     fun attempts() = prefs.getInt("attempts", 0)
 
